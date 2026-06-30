@@ -33,7 +33,7 @@ jobs:
             exit 1
           fi
           echo "Using zip file: $ZIP_FILE"
-          unzip -q "$ZIP_FILE" -d work
+          ditto -x -k "$ZIP_FILE" work
           PROJECT_FILE=$(find work -name CBrainIOS.xcodeproj -type d | head -n 1)
           if [ -z "$PROJECT_FILE" ]; then
             echo "CBrainIOS.xcodeproj not found after unzip."
