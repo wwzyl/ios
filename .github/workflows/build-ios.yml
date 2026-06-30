@@ -1,37 +1,29 @@
 name: Build iOS IPA
 
-on:
-    workflow_dispatch:
+"on":
+  workflow_dispatch:
 
-  jobs:
-    build:
-      runs-on: macos-15
+jobs:
+  build:
+    runs-on: macos-15
+    steps:
+      - uses: actions/checkout@v4
 
-      steps:
-        - name: Checkout
-        - name: Unzip project
-          run: |
-            mkdir work
-            unzip -q cbrain-ios.zip -d work
-            PROJECT_FILE="$(find work -name CBrainIOS.xcodeproj -type d | head -n 1)"
-            if [ -z "$PROJECT_FILE" ]; then
-              echo "CBrainIOS.xcodeproj not found"
-              exit 1
-            fi
-            PROJECT_ROOT="$(dirname "$PROJECT_FILE")"
-            echo "PROJECT_ROOT=$PROJECT_ROOT" >> "$GITHUB_ENV"
+      - name: Unzip project
+        run: |
+          mkdir work
+          unzip -q cbrain-ios.zip -d work
+          PROJECT_FILE=$(find work -name CBrainIOS.xcodeproj -type d | head -n 1)
+          PROJECT_ROOT=$(dirname "$PROJECT_FILE")
+          echo "PROJECT_ROOT=$PROJECT_ROOT" >> "$GITHUB_ENV"
 
-        - name: Show Xcode version
-          run: xcodebuild -version
+      - name: Build IPA
+        run: |
+          cd "$PROJECT_ROOT"
+          bash Scripts/package_ipa.sh
+          cp build/ipa/CBrainIOS.ipa "$GITHUB_WORKSPACE/CBrainIOS.ipa"
 
-        - name: Build IPA
-          run: |
-            cd "$PROJECT_ROOT"
-            bash Scripts/package_ipa.sh
-            cp build/ipa/CBrainIOS.ipa "$GITHUB_WORKSPACE/CBrainIOS.ipa"
-
-        - name: Upload IPA
-          uses: actions/upload-artifact@v4
-          with:
-            name: CBrainIOS-ipa
-            path: CBrainIOS.ipa
+      - uses: actions/upload-artifact@v4
+        with:
+          name: CBrainIOS-ipa
+          path: CBrainIOS.ipa
