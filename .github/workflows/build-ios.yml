@@ -1,5 +1,11 @@
 name: Build iOS IPA
 
+# Artifact usage:
+# - Upload cbrain-ios-journal-start.zip to the repository root.
+# - Download CBrainIOS-installables from the workflow run.
+# - For TrollStore, install CBrainIOS.tipa first.
+# - Do not install the source zip or the artifact wrapper zip directly.
+
 "on":
   workflow_dispatch:
 
@@ -20,9 +26,10 @@ jobs:
       - name: Unzip project
         run: |
           mkdir work
-          ZIP_FILE=$(find . -maxdepth 2 -name "*.zip" -type f | head -n 1)
-          if [ -z "$ZIP_FILE" ]; then
-            echo "No zip file found. Please upload cbrain-ios.zip to the repository root."
+          ZIP_FILE="cbrain-ios-journal-start.zip"
+          if [ ! -f "$ZIP_FILE" ]; then
+            echo "Expected $ZIP_FILE in the repository root."
+            echo "Upload D:\\codex\\cbrain-ios-journal-start.zip with this exact name."
             exit 1
           fi
           echo "Using zip file: $ZIP_FILE"
@@ -49,6 +56,12 @@ jobs:
           bash Scripts/package_ipa.sh
           cp build/ipa/CBrainIOS.ipa "$GITHUB_WORKSPACE/CBrainIOS.ipa"
           cp build/ipa/CBrainIOS.tipa "$GITHUB_WORKSPACE/CBrainIOS.tipa"
+
+      - name: Validate installables
+        run: |
+          unzip -tq CBrainIOS.ipa "Payload/CBrainIOS.app/Info.plist" >/dev/null
+          unzip -tq CBrainIOS.tipa "Payload/CBrainIOS.app/Info.plist" >/dev/null
+          echo "TrollStore: download CBrainIOS-installables and install CBrainIOS.tipa."
 
       - uses: actions/upload-artifact@v4
         with:
