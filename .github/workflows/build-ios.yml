@@ -9,6 +9,9 @@ jobs:
     steps:
       - uses: actions/checkout@v4
 
+      - name: Select Xcode
+        run: sudo xcode-select -s /Applications/Xcode_16.4.app
+
       - name: Show uploaded files
         run: |
           pwd
@@ -34,13 +37,22 @@ jobs:
           echo "PROJECT_ROOT=$PROJECT_ROOT" >> "$GITHUB_ENV"
           echo "Project root: $PROJECT_ROOT"
 
+      - name: Normalize scripts
+        run: |
+          cd "$PROJECT_ROOT"
+          perl -pi -e 's/\r$//' Scripts/package_ipa.sh
+          chmod +x Scripts/package_ipa.sh
+
       - name: Build IPA
         run: |
           cd "$PROJECT_ROOT"
           bash Scripts/package_ipa.sh
           cp build/ipa/CBrainIOS.ipa "$GITHUB_WORKSPACE/CBrainIOS.ipa"
+          cp build/ipa/CBrainIOS.tipa "$GITHUB_WORKSPACE/CBrainIOS.tipa"
 
       - uses: actions/upload-artifact@v4
         with:
-          name: CBrainIOS-ipa
-          path: CBrainIOS.ipa
+          name: CBrainIOS-installables
+          path: |
+            CBrainIOS.ipa
+            CBrainIOS.tipa
