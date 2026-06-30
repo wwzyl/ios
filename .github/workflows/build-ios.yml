@@ -9,13 +9,30 @@ jobs:
     steps:
       - uses: actions/checkout@v4
 
+      - name: Show uploaded files
+        run: |
+          pwd
+          find . -maxdepth 3 -type f | sort
+
       - name: Unzip project
         run: |
           mkdir work
-          unzip -q cbrain-ios.zip -d work
+          ZIP_FILE=$(find . -maxdepth 2 -name "*.zip" -type f | head -n 1)
+          if [ -z "$ZIP_FILE" ]; then
+            echo "No zip file found. Please upload cbrain-ios.zip to the repository root."
+            exit 1
+          fi
+          echo "Using zip file: $ZIP_FILE"
+          unzip -q "$ZIP_FILE" -d work
           PROJECT_FILE=$(find work -name CBrainIOS.xcodeproj -type d | head -n 1)
+          if [ -z "$PROJECT_FILE" ]; then
+            echo "CBrainIOS.xcodeproj not found after unzip."
+            find work -maxdepth 4 -type f | sort
+            exit 1
+          fi
           PROJECT_ROOT=$(dirname "$PROJECT_FILE")
           echo "PROJECT_ROOT=$PROJECT_ROOT" >> "$GITHUB_ENV"
+          echo "Project root: $PROJECT_ROOT"
 
       - name: Build IPA
         run: |
