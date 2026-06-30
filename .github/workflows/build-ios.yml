@@ -1,134 +1,46 @@
 name: Build iOS IPA
 
-# Web upload workflow:
-# 1. Zip the source project folder on your computer.
-# 2. Upload that zip to the GitHub repository root.
-# 3. Prefer naming it cbrain-ios-source.zip. The workflow also accepts cbrain ios.zip.
-# 4. Run this workflow from Actions.
-# 5. Download UNZIP-FIRST-CBrainIOS-installables, extract it, then install CBrainIOS.tipa.
-
-on:
+"on":
   workflow_dispatch:
 
 jobs:
   build:
     runs-on: macos-15
     steps:
-      - name: Checkout
-        uses: actions/checkout@v4
+      - uses: actions/checkout@v4
 
-      - name: Select Xcode
-        run: sudo xcode-select -s /Applications/Xcode_16.4.app
-
-      - name: Locate source project
+      - name: Show uploaded files
         run: |
-          set -euo pipefail
+          pwd
+          find . -maxdepth 3 -type f | sort
 
-          if [ -d "CBrainIOS.xcodeproj" ]; then
-            echo "PROJECT_ROOT=$GITHUB_WORKSPACE" >> "$GITHUB_ENV"
-            echo "Using source files directly from repository root."
-            exit 0
-          fi
-
-          mkdir -p work
-          SOURCE_ZIP=""
-
-          for candidate in "cbrain-ios-source.zip" "cbrain ios.zip" "cbrain-ios-journal-start.zip"; do
-            if [ -f "$candidate" ]; then
-              SOURCE_ZIP="$candidate"
-              break
-            fi
-          done
-
-          if [ -z "$SOURCE_ZIP" ]; then
-            while IFS= read -r candidate; do
-              if unzip -Z1 "$candidate" | grep -q 'CBrainIOS.xcodeproj/'; then
-                SOURCE_ZIP="$candidate"
-                break
-              fi
-            done < <(find . -maxdepth 1 -type f -name '*.zip' | sort)
-          fi
-
-          if [ -z "$SOURCE_ZIP" ]; then
-            echo "No source zip containing CBrainIOS.xcodeproj was found in the repository root."
-            echo "Upload the source zip as cbrain-ios-source.zip, or cbrain ios.zip, then run this workflow again."
-            find . -maxdepth 2 -type f | sort
+      - name: Unzip project
+        run: |
+          mkdir work
+          ZIP_FILE=$(find . -maxdepth 2 -name "*.zip" -type f | head -n 1)
+          if [ -z "$ZIP_FILE" ]; then
+            echo "No zip file found. Please upload cbrain-ios-source.zip to the repository root."
             exit 1
           fi
-
-          echo "Using source zip: $SOURCE_ZIP"
-          ditto -x -k "$SOURCE_ZIP" work
-
-          PROJECT_FILE="$(find work -name CBrainIOS.xcodeproj -type d | head -n 1)"
+          echo "Using zip file: $ZIP_FILE"
+          unzip -q "$ZIP_FILE" -d work
+          PROJECT_FILE=$(find work -name CBrainIOS.xcodeproj -type d | head -n 1)
           if [ -z "$PROJECT_FILE" ]; then
-            echo "CBrainIOS.xcodeproj not found after unzipping $SOURCE_ZIP."
+            echo "CBrainIOS.xcodeproj not found after unzip."
             find work -maxdepth 4 -type f | sort
             exit 1
           fi
-
-          PROJECT_ROOT="$(cd "$(dirname "$PROJECT_FILE")" && pwd)"
+          PROJECT_ROOT=$(dirname "$PROJECT_FILE")
           echo "PROJECT_ROOT=$PROJECT_ROOT" >> "$GITHUB_ENV"
           echo "Project root: $PROJECT_ROOT"
 
-      - name: Normalize scripts
-        run: |
-          set -euo pipefail
-          cd "$PROJECT_ROOT"
-          perl -pi -e 's/\r$//' Scripts/package_ipa.sh
-          chmod +x Scripts/package_ipa.sh
-
       - name: Build IPA
         run: |
-          set -euo pipefail
           cd "$PROJECT_ROOT"
           bash Scripts/package_ipa.sh
           cp build/ipa/CBrainIOS.ipa "$GITHUB_WORKSPACE/CBrainIOS.ipa"
-          cp build/ipa/CBrainIOS.tipa "$GITHUB_WORKSPACE/CBrainIOS.tipa"
 
-      - name: Validate installables
-        run: |
-          set -euo pipefail
-
-          for package in CBrainIOS.ipa CBrainIOS.tipa; do
-            unzip -tq "$package" "Payload/CBrainIOS.app/Info.plist" >/dev/null
-            unzip -tq "$package" "Payload/CBrainIOS.app/CBrainIOS" >/dev/null
-            unzip -tq "$package" "Payload/CBrainIOS.app/_CodeSignature/CodeResources" >/dev/null
-
-            app_count="$(zipinfo -1 "$package" | grep -E '^Payload/[^/]+\.app/$' | wc -l | tr -d ' ')"
-            if [ "$app_count" != "1" ]; then
-              echo "$package must contain exactly one app bundle under Payload/."
-              zipinfo -1 "$package" | sed -n '1,120p'
-              exit 1
-            fi
-
-            if zipinfo -1 "$package" | grep -q '\\'; then
-              echo "Invalid backslash path found in $package."
-              zipinfo -1 "$package" | sed -n '1,120p'
-              exit 1
-            fi
-          done
-
-          echo "CBrainIOS.tipa contents:"
-          zipinfo -1 CBrainIOS.tipa | sed -n '1,80p'
-
-      - name: Write install notes
-        run: |
-          cat > README_INSTALL.txt <<'EOF'
-          TrollStore install steps:
-          1. Download the UNZIP-FIRST-CBrainIOS-installables artifact from GitHub Actions.
-          2. Extract that downloaded artifact zip first.
-          3. Install CBrainIOS.tipa from inside the extracted folder.
-
-          Do not install the source zip.
-          Do not install the GitHub artifact wrapper zip.
-          Do not install a Payload folder directly.
-          EOF
-
-      - name: Upload installables
-        uses: actions/upload-artifact@v4
+      - uses: actions/upload-artifact@v4
         with:
-          name: UNZIP-FIRST-CBrainIOS-installables
-          path: |
-            CBrainIOS.ipa
-            CBrainIOS.tipa
-            README_INSTALL.txt
+          name: CBrainIOS-ipa
+          path: CBrainIOS.ipa
