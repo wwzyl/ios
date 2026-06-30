@@ -62,6 +62,8 @@ jobs:
         run: |
           unzip -tq CBrainIOS.ipa "Payload/CBrainIOS.app/Info.plist" >/dev/null
           unzip -tq CBrainIOS.tipa "Payload/CBrainIOS.app/Info.plist" >/dev/null
+          unzip -tq CBrainIOS.ipa "Payload/CBrainIOS.app/_CodeSignature/CodeResources" >/dev/null
+          unzip -tq CBrainIOS.tipa "Payload/CBrainIOS.app/_CodeSignature/CodeResources" >/dev/null
           echo "CBrainIOS.ipa contents:"
           zipinfo -1 CBrainIOS.ipa | sed -n '1,80p'
           if zipinfo -1 CBrainIOS.ipa | grep -q '\\'; then
