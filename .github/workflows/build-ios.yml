@@ -2,7 +2,8 @@ name: Build iOS IPA
 
 # Artifact usage:
 # - Upload cbrain-ios-journal-start.zip to the repository root.
-# - Download CBrainIOS-installables from the workflow run.
+# - Download UNZIP-FIRST-CBrainIOS-installables from the workflow run.
+# - Extract the downloaded artifact zip first.
 # - For TrollStore, install CBrainIOS.tipa first.
 # - Do not install the source zip or the artifact wrapper zip directly.
 
@@ -61,11 +62,30 @@ jobs:
         run: |
           unzip -tq CBrainIOS.ipa "Payload/CBrainIOS.app/Info.plist" >/dev/null
           unzip -tq CBrainIOS.tipa "Payload/CBrainIOS.app/Info.plist" >/dev/null
-          echo "TrollStore: download CBrainIOS-installables and install CBrainIOS.tipa."
+          echo "CBrainIOS.ipa contents:"
+          zipinfo -1 CBrainIOS.ipa | sed -n '1,80p'
+          if zipinfo -1 CBrainIOS.ipa | grep -q '\\'; then
+            echo "Invalid backslash path found in CBrainIOS.ipa"
+            exit 1
+          fi
+          echo "TrollStore: download UNZIP-FIRST-CBrainIOS-installables, extract it, then install CBrainIOS.tipa."
+
+      - name: Write install notes
+        run: |
+          cat > README_INSTALL.txt <<'EOF'
+          TrollStore install steps:
+          1. GitHub downloads this artifact as a zip file.
+          2. Extract that zip first.
+          3. Install CBrainIOS.tipa from inside the extracted folder.
+
+          Do not install the GitHub artifact zip.
+          Do not install the source zip.
+          EOF
 
       - uses: actions/upload-artifact@v4
         with:
-          name: CBrainIOS-installables
+          name: UNZIP-FIRST-CBrainIOS-installables
           path: |
             CBrainIOS.ipa
             CBrainIOS.tipa
+            README_INSTALL.txt
